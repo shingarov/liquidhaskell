@@ -1,0 +1,27 @@
+name: tutorial
+version: '0.2.0.0'
+synopsis: Source for "Programming with Refinement Types"
+category: Web
+author: Ranjit Jhala
+maintainer: jhala@cs.ucsd.edu
+copyright: Ranjit Jhala
+license: MIT
+homepage: https://github.com/ucsd-progsys/liquidhaskell-tutorial
+dependencies:
+- base
+- liquidhaskell-boot
+- liquid-prelude
+- liquid-vector
+- liquidhaskell
+
+library:
+  ghc-options: -fplugin=LiquidHaskell
+
+  source-dirs:
+    - src
+
+  exposed-modules:
+    - Append
+    - Composition 
+    - ICFP15
+    - Find
