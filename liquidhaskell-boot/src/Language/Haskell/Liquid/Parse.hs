@@ -47,7 +47,7 @@ import           Language.Fixpoint.Parse                hiding (defineP, dataDec
 
 import Control.Monad.State
 
--- import Debug.Trace
+import Debug.Trace
 
 -- * Top-level parsing API
 
@@ -552,7 +552,7 @@ bareAllP = do
         <|> return []
   _ <- dot
   t <- bareTypeP
-  return $ foldr rAllT (foldr (rAllP sp) t ps) (makeRTVar <$> as)
+  return $ trace ("\n\n\nFUCKME\nas = " ++ show as ++ "\nps = " ++ show ps ++ "\nt = " ++ show t)   (foldr rAllT (foldr (rAllP sp) t ps) (makeRTVar <$> as))
   where
     rAllT a t = RAllT a t mempty
     inAngles  = try  (sepBy  predVarDefP comma)

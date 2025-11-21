@@ -54,6 +54,7 @@ import           Language.Haskell.Liquid.Constraint.Template
 import           Language.Haskell.Liquid.Constraint.Termination
 import           Language.Haskell.Liquid.Transforms.CoreToLogic (weakenResult, runToLogic, coreToLogic)
 import           Language.Haskell.Liquid.Bare.DataType (dataConMap, makeDataConChecker)
+import Debug.Trace
 
 --------------------------------------------------------------------------------
 -- | Constraint Generation: Toplevel -------------------------------------------
@@ -308,7 +309,7 @@ cconsE' γ e@(Let b@(NonRec x _) ee) t
                  cconsE γ' ee t
 
 cconsE' γ e (RAllP p t)
-  = cconsE γ' e t''
+  = cconsE γ' e (trace ("\n\ncconsE' RAllP:\ne = " ++ show e ++ "\np = " ++ show p ++ "\nt = " ++ show t ++ "\n-->\nt'' = " ++ show t'' ++ "\n===================") t'')
   where
     t'         = replacePredsWithRefs su <$> t
     su         = (uPVar p, pVartoRConc p)
@@ -356,6 +357,7 @@ cconsE' γ e@(Cast e' c) t
 
 cconsE' γ e t
   = do te  <- consE γ e
+       traceM ("\nD: te = " ++ show te)
        te' <- instantiatePreds γ e te >>= addPost γ
        addC (SubC γ te' t) ("cconsE: " ++ "\n t = " ++ showpp t ++ "\n te = " ++ showpp te ++ GM.showPpr e)
 
@@ -391,7 +393,7 @@ addFunctionConstraint γ x e (RFun y i ty t r)
   = do ty'      <- true (typeclass (getConfig γ)) ty
        t'       <- true (typeclass (getConfig γ)) t
        let truet = RFun y i ty' t'
-       lamE <- lamExpr γ e
+       lamE <- lamExpr γ (trace ("\n\naddFunctionConstraint:\nx = " ++ show x ++ "\ne = " ++ show e ++ "\ny = " ++ show y ++ "\ni = " ++ show i ++ "\nty = " ++ show ty ++ "\nt = " ++ show t ++ "\nr = " ++ show r ++ "\nty' = " ++ show ty' ++ "\nt' = " ++ show t' ++ "\n====")     e)
        case (lamE, higherOrderFlag γ) of
           (Just e', True) -> do tce    <- gets tyConEmbed
                                 let sx  = typeSort tce $ varType x
@@ -406,7 +408,7 @@ splitConstraints :: TyConable c
 splitConstraints allowTC (RRTy cs _ OCons t)
   = let (css, t') = splitConstraints allowTC t in (cs:css, t')
 splitConstraints allowTC (RFun x i tx@(RApp c _ _ _) t r) | isErasable c
-  = let (css, t') = splitConstraints allowTC  t in (css, RFun x i tx t' r)
+  = let (css, t') = splitConstraints allowTC  (trace "\n\nOH SHIT"   t) in (css, RFun x i tx t' r)
   where isErasable = if allowTC then isEmbeddedDict else isClass
 splitConstraints _ t
   = ([], t)
@@ -422,6 +424,7 @@ instantiatePreds :: CGEnv
                  -> CG SpecType
 instantiatePreds γ e (RAllP π t)
   = do r <- freshPredRef γ e π
+       traceM ("\n\ninstantiatePreds:\ne = " ++ show e ++ "\nπ = " ++ show π ++ "\nt = " ++ show t ++ "\nr = " ++ show r)
        instantiatePreds γ e $ replacePreds "consE" t [(π, r)]
 
 instantiatePreds _ _ t0
@@ -480,7 +483,7 @@ consE _ (Lit c)
   = refreshVV $ uRType $ literalFRefType c
 
 consE γ e'@(App e a@(Type τ))
-  = do RAllT α te _ <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
+  = do RAllT α te _ <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ (trace "\n\nApp-1" e)
        t            <- if not (nopolyinfer (getConfig γ)) && isPos α && isGenericVar (ty_var_value α) te
                          then freshTyType (typeclass (getConfig γ)) TypeInstE e τ
                          else trueTy (typeclass (getConfig γ)) τ
@@ -495,7 +498,7 @@ consE γ e'@(App e a@(Type τ))
     isPos α = not (extensionality (getConfig γ)) || rtv_is_pol (ty_var_info α)
 
 consE γ e'@(App e a) | Just aDict <- getExprDict γ a
-  = case dhasinfo (dlookup (denv γ) aDict) (getExprFun γ e) of
+  = case dhasinfo (dlookup (denv γ) aDict) (getExprFun γ (trace "\n\nApp-2" e)) of
       Just riSig -> return $ fromRISig riSig
       _          -> do
         ([], πs, te) <- bkUniv <$> consE γ e
@@ -508,7 +511,7 @@ consE γ e'@(App e a) | Just aDict <- getExprDict γ a
         addPost γ'        $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a)
 
 consE γ e'@(App e a)
-  = do ([], πs, te) <- bkUniv <$> consE γ {- GM.tracePpr ("APP-EXPR: " ++ GM.showPpr (exprType e)) -} e
+  = do ([], πs, te) <- bkUniv <$> consE γ ( GM.tracePpr ("APP-EXPR: " ++ GM.showPpr (exprType e))  e)
        te1        <- instantiatePreds γ e' $ foldr RAllP te πs
        (γ', te2)  <- dropExists γ te1
        te3        <- dropConstraints γ te2
@@ -931,7 +934,7 @@ instantiateTys = L.foldl' go
 instantiatePvs :: SpecType -> [SpecProp] -> SpecType
 instantiatePvs           = L.foldl' go
   where
-    go (RAllP p tbody) r = replacePreds "instantiatePv" tbody [(p, r)]
+    go (RAllP p tbody) r = replacePreds "instantiatePv" (trace "\n\ninstantiatePvs:\n"  tbody) [(p, r)]
     go t               _ = errorP "" ("Constraint.instantiatePvs: t = " ++ showpp t)
 
 checkTyCon :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
