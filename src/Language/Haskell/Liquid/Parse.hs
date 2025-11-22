@@ -44,6 +44,7 @@ import qualified Language.Fixpoint.Misc                 as Misc
 import qualified Language.Haskell.Liquid.Misc           as Misc
 import qualified Language.Haskell.Liquid.Measure        as Measure
 import           Language.Fixpoint.Parse                hiding (defineP, dataDeclP, refBindP, refP, refDefP, parseTest')
+import Data.Hashable
 
 import Control.Monad.State
 
@@ -540,7 +541,16 @@ constraintEnvP
   <|> return []
   <?> "constraintEnvP"
 
-rrTy :: Monoid r => RType c tv r -> RType c tv r -> RType c tv r
+rrTy :: Monoid r =>
+        TyConable c =>
+        PPrint c =>
+        PPrint r =>
+        Reftable r =>
+        PPrint tv =>
+        Reftable (RTProp c tv r) =>
+        Reftable (RTProp c tv ()) =>
+        Hashable tv =>
+        RType c tv r -> RType c tv r -> RType c tv r
 rrTy ct = RRTy (xts ++ [(dummySymbol, tr)]) mempty OCons
   where
     tr   = ty_res trep
@@ -773,7 +783,7 @@ bRProp syms' epr  = RProp ss $ bRVar (BTV dummyName) mempty r
     su            = mkSubst [(x, EVar y) | ((x, _), y) <- syms']
     r             = su `subst` Reft (v, epr)
 
-bRVar :: tv -> Predicate -> r -> RType c tv (UReft r)
+bRVar :: Show tv => Show r => tv -> Predicate -> r -> RType c tv (UReft r)
 bRVar α p r = RVar α (MkUReft r p)
 
 bLst :: Maybe (RType BTyCon tv (UReft r))
