@@ -146,6 +146,14 @@ data SubC     = SubC { senv  :: !CGEnv
                      , oblig :: !Oblig
                      , ref   :: !RReft
                      }
+              deriving Show
+
+-- instance Show SubC where
+--   show (SubC _ l r) =
+--     "SubC: (" ++ show l ++ ") ⇒ (" ++ show r ++ ")"
+-- 
+--   show (SubR _ _ _) =
+--     "SubR (...)"
 
 data WfC      = WfC  !CGEnv !SpecType
               -- deriving (Data, Typeable)
