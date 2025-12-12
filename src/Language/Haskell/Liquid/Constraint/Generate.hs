@@ -726,6 +726,7 @@ addFunctionConstraint γ _ _ _
   = impossible (Just $ getLocation γ) "addFunctionConstraint: called on non function argument"
 
 splitConstraints :: TyConable c
+                 => PPrint tv => PPrint c => PPrint r => F.Reftable r => F.Reftable (RTProp c tv r) => F.Reftable (RTProp c tv ()) => Eq tv => Hashable tv
                  => Bool -> RType c tv r -> ([[(F.Symbol, RType c tv r)]], RType c tv r)
 splitConstraints allowTC (RRTy cs _ OCons t)
   = let (css, t') = splitConstraints allowTC t in (cs:css, t')
