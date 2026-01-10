@@ -61,6 +61,8 @@ import           Language.Haskell.Liquid.Types.RefType hiding (generalize)
 import           Language.Haskell.Liquid.Types.Types
 import           Data.Default
 
+import Debug.Trace
+
 makeTyConInfo :: F.TCEmb Ghc.TyCon -> [Ghc.TyCon] -> [TyConP] -> TyConMap
 makeTyConInfo tce fiTcs tcps = TyConMap
   { tcmTyRTy    = tcM
@@ -248,7 +250,15 @@ dataConTy _ _
 replacePredsWithRefs :: (UsedPVar, (F.Symbol, [((), F.Symbol, F.Expr)]) -> F.Expr)
                      -> UReft F.Reft -> UReft F.Reft
 replacePredsWithRefs (p, r) (MkUReft (F.Reft(v, rs)) (Pr ps))
-  = MkUReft (F.Reft (v, rs'')) (Pr ps2)
+  = traceStack ("\n\n\n\nreplacePredsWithRefs:\np = " ++ show p
+                ++ "\nv = " ++ show v
+                ++ "\nrs = " ++ show rs
+                ++ "\nps = " ++ show ps
+                ++ "\n---------------------------------------------------->"
+                ++ "\nrs'' = " ++ show rs''
+                ++ "\nps1 = " ++ show ps1
+                ++ "\nps2 = " ++ show ps2)
+               $ MkUReft (F.Reft (v, rs'')) (Pr ps2)
   where
     rs''             = mconcat $ rs : rs'
     rs'              = r . (v,) . pargs <$> ps1
