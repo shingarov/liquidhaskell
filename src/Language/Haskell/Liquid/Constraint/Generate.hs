@@ -62,6 +62,8 @@ import           Language.Haskell.Liquid.Bare.DataType (dataConMap, makeDataConC
 
 import           Language.Haskell.Liquid.Types hiding (binds, Loc, loc, Def)
 import Data.Typeable(typeOf)
+import Debug.Trace
+import Data.Hashable
 
 --------------------------------------------------------------------------------
 -- | Constraint Generation: Toplevel -------------------------------------------
@@ -710,6 +712,7 @@ cconsE' γ (Var x) t | isHoleVar x && typedHoles (getConfig γ)
 
 cconsE' γ e t
   = do  te  <- consE γ e
+        traceM "\n\n\nℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤ→4"
         te' <- instantiatePreds γ e te >>= addPost γ
         addC (SubC γ te' t) ("cconsE: " ++ "\n t = " ++ showpp t ++ "\n te = " ++ showpp te ++ GM.showPpr e)
 
@@ -802,6 +805,7 @@ instantiatePreds :: CGEnv
                  -> CG SpecType
 instantiatePreds γ e (RAllP π t)
   = do r     <- freshPredRef γ e π
+       traceM ("\n\n\nℤℤℤℤℤℤℤℤℤ  instantiatePreds  ℤℤℤℤℤℤℤℤℤ\ne = " ++ showBoth e)
        instantiatePreds γ e $ replacePreds "consE" t [(π, r)]
 
 instantiatePreds _ _ t0
@@ -869,6 +873,7 @@ consE γ e'@(App e a@(Type τ))
                          else trueTy (typeclass (getConfig γ)) τ
        addW          $ WfC γ t
        t'           <- refreshVV t
+       traceM "\n\n\nℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤ→1"
        tt0          <- instantiatePreds γ e' (subsTyVarMeet' (ty_var_value α, t') te)
        let tt        = makeSingleton γ (simplify e') $ subsTyReft γ (ty_var_value α) τ tt0
        case rTVarToBind α of
@@ -882,6 +887,7 @@ consE γ e'@(App e a) | Just aDict <- getExprDict γ a
       Just riSig -> return $ fromRISig riSig
       _          -> do
         ([], πs, te) <- bkUniv <$> consE γ e
+        traceM "\n\n\nℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤ→2"
         te'          <- instantiatePreds γ e' $ foldr RAllP te πs
         (γ', te''')  <- dropExists γ te'
         te''         <- dropConstraints γ te'''
@@ -892,6 +898,7 @@ consE γ e'@(App e a) | Just aDict <- getExprDict γ a
 
 consE γ e'@(App e a)
   = do ([], πs, te) <- bkUniv <$> consE γ {- GM.tracePpr ("APP-EXPR: " ++ GM.showPpr (exprType e)) -} e
+       traceM ("\n\n\nℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤℤ→3\ne = " ++ showBoth e ++ "\na = " ++ showBoth a ++ "\nπs = " ++ show πs ++ "\nte = " ++ show te)
        te1        <- instantiatePreds γ e' $ foldr RAllP te πs
        (γ', te2)  <- dropExists γ te1
        te3        <- dropConstraints γ te2
