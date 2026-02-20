@@ -61,6 +61,7 @@ import           Language.Haskell.Liquid.Transforms.CoreToLogic (weakenResult, r
 import           Language.Haskell.Liquid.Bare.DataType (dataConMap, makeDataConChecker)
 
 import           Language.Haskell.Liquid.Types hiding (binds, Loc, loc, Def)
+import Data.Typeable(typeOf)
 
 --------------------------------------------------------------------------------
 -- | Constraint Generation: Toplevel -------------------------------------------
@@ -278,6 +279,13 @@ consCBTop _ _ γ cb
       topBind (Rec [(v,_)]) = Just v
       topBind _             = Nothing
 
+
+showCbBoth :: CoreBind -> String
+showCbBoth (NonRec x def) = "⸄NonRec x = " ++ show x ++ "; def = (((typeOf = " ++ show (typeOf def) ++ "))) " ++ showBoth def ++ "⸅"
+showCbBoth _ = "Rec..."
+
+
+
 trustVar :: Config -> TargetInfo -> Var -> Bool
 trustVar cfg info x = not (checkDerived cfg) && derivedVar (giSrc info) x
 
@@ -454,6 +462,27 @@ grepDictionary = go []
     go ts (App e (Var _))        = go ts e
     go ts (Let _ e)              = go ts e
     go _ _                       = Nothing
+
+
+
+
+showStruct :: CoreExpr -> String
+showStruct (Var x)    = "Var " ++ show x
+showStruct (Lit _)    = "Lit..."
+showStruct (App f x)  = "App\n    f = " ++ showBoth f ++ "\n    x = " ++ showBoth x ++ "\n"
+showStruct (Lam b e)  = "Lam\n    b = " ++ show b ++ "   ∈  " ++ show (typeOf b) ++ "\n    e = " ++ showBoth e ++ "\n"
+showStruct (Let b e)  = "Let b=" ++ showCbBoth b ++ " e=" ++ show e
+showStruct (Case _ _ _ _) = "Case..."
+showStruct (Cast _ _) = "Cast..."
+showStruct (Tick _ e) = "Tick\n  t = ...\n  e = " ++ showBoth e ++ "\n"
+showStruct (Type _)   = "Type..."
+showStruct (Coercion _) = "Coercion..."
+
+-- show «structural» followed by ⟦usual⟧ (separated by newline)
+showBoth :: CoreExpr -> String
+showBoth e = "«" ++ showStruct e ++ "»\n⟦" ++ show e ++ "⟧\n"
+
+
 
 --------------------------------------------------------------------------------
 consBind :: Bool -> CGEnv -> (Var, CoreExpr, Template SpecType) -> CG (Template SpecType)
