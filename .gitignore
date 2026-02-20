@@ -44,6 +44,7 @@ tests/synthesis/logs/*
 TAGS
 tags*
 a.out
+liquid.prof
 *.json
 js/
 css/
