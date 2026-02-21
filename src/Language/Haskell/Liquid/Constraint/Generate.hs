@@ -19,7 +19,7 @@
 
 module Language.Haskell.Liquid.Constraint.Generate ( generateConstraints, generateConstraintsWithEnv, caseEnv, consE ) where
 
-import           Prelude                                       hiding (error)
+import           Prelude
 import           GHC.Stack
 import           Liquid.GHC.API                   as Ghc hiding ( panic
                                                                                  , checkErr
@@ -62,6 +62,7 @@ import           Language.Haskell.Liquid.Bare.DataType (dataConMap, makeDataConC
 
 import           Language.Haskell.Liquid.Types hiding (binds, Loc, loc, Def)
 import Data.Typeable(typeOf)
+import Debug.Trace
 import Data.Hashable
 
 --------------------------------------------------------------------------------
@@ -267,6 +268,7 @@ consCBTop cfg info cgenv cb
 
 consCBTop _ _ γ cb
   = do oldtcheck <- gets tcheck
+       traceM $ "\n\n\n\n<<<<<<<<<< conCBTop: cb = " ++ showCbBoth cb ++ "\n>>>>>>>>>>\n"
        -- lazyVars  <- specLazy <$> get
        isStr     <- doTermCheck (getConfig γ) cb
        modify $ \s -> s { tcheck = oldtcheck && isStr}
@@ -450,10 +452,19 @@ consCB _ _ γ (NonRec x def)
     f (t':ts) (RAllT α te _) = f ts $ subsTyVarMeet' (ty_var_value α, t') te
     f _ _ = impossible Nothing "consCB on Dictionary: this should not happen"
 
-consCB _ _ γ (NonRec x e)
-  = do to  <- varTemplate γ (x, Nothing)
+consCB _ _ γ z@(NonRec _ _) = fuckCB γ (traceStack "\n\n\n\n************************** THE consCB ***************************"  z)
+
+
+
+fuckCB :: CGEnv -> CoreBind -> CG CGEnv
+fuckCB γ (NonRec x e)
+  = do traceM $ "\n\n\n\nfuckCB:\nx = " ++ show x ++ "\ne = " ++ showBoth e ++ "⟧\n"
+       to  <- varTemplate γ (x, Nothing)
        to' <- consBind False γ (x, e, to) >>= addPostTemplate γ
        extender γ (x, makeSingleton γ (simplify e) <$> to')
+fuckCB _ _ = error "FUCK"
+
+
 
 grepDictionary :: CoreExpr -> Maybe (Var, [Type])
 grepDictionary = go []
@@ -501,6 +512,7 @@ consBind isRec' γ (x, e, Asserted spect)
        let tyr = toRTypeRep spect
        let spect' = fromRTypeRep (tyr { ty_ebinds = [], ty_einfo = [], ty_eargs = [], ty_erefts = [] })
        γπ <- foldM (+=) cgenv $ (\(y,t)->("implicitError",y,t)) <$> zip (ty_ebinds tyr) (ty_eargs tyr)
+       traceM  $  "\n\n\nconsBind:\nx = " ++ show x ++ "\ne = " ++ show e ++ "\ntypeOf e = " ++ show (typeOf e) ++ "\nspect = " ++ show spect ++ "\nspect' = " ++ show spect'
 
        cconsE γπ e (weakenResult (typeclass (getConfig γ)) x spect')
        when (F.symbol x `elemHEnv` holes γ) $
@@ -638,22 +650,22 @@ cconsE :: CGEnv -> CoreExpr -> SpecType -> CG ()
 --------------------------------------------------------------------------------
 cconsE g e t = do
   -- NOTE: tracing goes here
-  -- traceM $ printf "cconsE:\n  expr = %s\n  exprType = %s\n  lqType = %s\n" (showPpr e) (showPpr (exprType e)) (showpp t)
-  cconsE' g e t
+  cconsE' g e (traceStack  ("\n\n\ncconsE:\nFUCK e: " ++ showStruct e ++ "\ntypeOf e = " ++ show (typeOf e) ++ "\nt = " ++ show t)      t)
 
 --------------------------------------------------------------------------------
 cconsE' :: CGEnv -> CoreExpr -> SpecType -> CG ()
 --------------------------------------------------------------------------------
 cconsE' γ e t
   | Just (Rs.PatSelfBind _x e') <- Rs.lift e
-  = cconsE' γ e' t
+  = cconsE' γ e' (trace "\n\n\nSUKA 6" t)
 
   | Just (Rs.PatSelfRecBind x e') <- Rs.lift e
   = let γ' = γ { grtys = insertREnv (F.symbol x) t (grtys γ)}
-    in void $ consCBLet γ' (Rec [(x, e')])
+    in void $ consCBLet γ' (Rec [(x, (trace "\n\n\nSUKA 7" e'))])
 
 cconsE' γ e@(Let b@(NonRec x _) ee) t
-  = do sp <- gets specLVars
+  = do traceM "\n\n\nSUKA 8"
+       sp <- gets specLVars
        if x `S.member` sp
          then cconsLazyLet γ e t
          else do γ'  <- consCBLet γ b
@@ -678,7 +690,8 @@ cconsE' γ e (RAllP p t)
     γ'         = L.foldl' addConstraints γ css
 
 cconsE' γ (Let b e) t
-  = do γ'  <- consCBLet γ b
+  = do traceM $ "\n\n\nSUKA 4\ne = " ++ show e
+       γ'  <- consCBLet γ b
        cconsE γ' e t
 
 cconsE' γ (Case e x _ cases) t
@@ -688,14 +701,16 @@ cconsE' γ (Case e x _ cases) t
        nonDefAlts = [a | Alt a _ _ <- cases, a /= DEFAULT]
        _msg = "cconsE' #nonDefAlts = " ++ show (length nonDefAlts)
 
-cconsE' γ (Lam α e) (RAllT α' t r) | isTyVar α
-  = do γ' <- updateEnvironment γ α
+cconsE' γ zzz@(Lam α e) (RAllT α' t r) | isTyVar α
+  = do traceM $ "\n\n\nSUKA 1\nzzz = " ++ show zzz ++ "\nα = " ++ show α ++ "\ne = " ++ show e ++ "\nα' = " ++ show α' ++ "\nt = " ++ show t
+       γ' <- updateEnvironment γ α
        addForAllConstraint γ' α e (RAllT α' t r)
        cconsE γ' e $ subsTyVarMeet' (ty_var_value α', rVar α) t
 
-cconsE' γ (Lam x e) (RFun y i ty t r)
+cconsE' γ zzz@(Lam x e) (RFun y i ty t r)
   | not (isTyVar x)
-  = do γ' <- γ += ("cconsE", x', ty)
+  = do traceM $ "\n\n\nSUKA 2\nx = " ++ show x ++ "\nzzz = " ++ show zzz ++ "\ny = " ++ show y
+       γ' <- γ += ("cconsE", x', ty)
        cconsE γ' e t'
        addFunctionConstraint γ x e (RFun x' i ty t' r')
        addIdA x (AnnDef ty)
@@ -717,10 +732,11 @@ cconsE' γ e@(Cast e' c) t
        addC (SubC γ (F.notracepp ("Casted Type for " ++ GM.showPpr e ++ "\n init type " ++ showpp t) t') t) ("cconsE Cast: " ++ GM.showPpr e)
 
 cconsE' γ (Var x) t | isHoleVar x && typedHoles (getConfig γ)
-  = addHole x t γ
+  = addHole x (trace "\n\n\nSUKAHHH" t) γ
 
 cconsE' γ e t
-  = do  te  <- consE γ e
+  = do  traceM $ "\n\n\nSUKA 3:\ne = " ++ show e
+        te  <- consE γ e
         te' <- instantiatePreds γ e te >>= addPost γ
         addC (SubC γ te' t) ("cconsE: " ++ "\n t = " ++ showpp t ++ "\n te = " ++ showpp te ++ GM.showPpr e)
 
@@ -769,12 +785,12 @@ splitConstraints :: TyConable c
                  => PPrint tv => PPrint c => PPrint r => F.Reftable r => F.Reftable (RTProp c tv r) => F.Reftable (RTProp c tv ()) => Eq tv => Hashable tv
                  => Bool -> RType c tv r -> ([[(F.Symbol, RType c tv r)]], RType c tv r)
 splitConstraints allowTC (RRTy cs _ OCons t)
-  = let (css, t') = splitConstraints allowTC t in (cs:css, t')
+  = let (css, t') = splitConstraints allowTC t in (trace ("\n\n\n\n\n\n!!!!!!!!!!!!!splitConstraints:\ncs = " ++ show cs ++ "\n: tail css = " ++ show css ++ "\nt = " ++ show t)  (cs:css, t'))
 splitConstraints allowTC (RFun x i tx@(RApp c _ _ _) t r) | isErasable c
-  = let (css, t') = splitConstraints allowTC  t in (css, RFun x i tx t' r)
+  = let (css, t') = splitConstraints allowTC  t in ((trace "\n\n\n\nFUCK, WE ALSO NEED splitConstraints RFUN\n\n\n" css), RFun x i tx t' r)
   where isErasable = if allowTC then isEmbeddedDict else isClass
 splitConstraints _ t
-  = ([], t)
+  = trace "\n\n\n\n\n\nsplitConstraints of non-RRTy"  ([], t)
 
 -------------------------------------------------------------------
 -- | @instantiateGhosts@ peels away implicit argument binders,
