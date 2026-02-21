@@ -660,7 +660,17 @@ cconsE' γ e@(Let b@(NonRec x _) ee) t
                  cconsE γ' ee t
 
 cconsE' γ e (RAllP p t)
-  = cconsE γ' e t''
+  = cconsE γ' e (trace      ("\n\n\ncconsE'(RAllP):\np = " ++ show p
+                             ++ "\n---------------"
+                             ++ "\nt   = " ++ show t
+                             ++ "\nt'  = " ++ show t'
+                             ++ "\nt'' = " ++ show t''
+                             ++ "\ntypeOf t   = " ++ show (typeOf t)
+                             ++ "\ntypeOf t'  = " ++ show (typeOf t')
+                             ++ "\ntypeOf t'' = " ++ show (typeOf t'')
+                             ++ "\ncss = " ++ show css
+                             ++ "\ne = " ++ showStruct e)
+                            t'')
   where
     t'         = replacePredsWithRefs su <$> t
     su         = (uPVar p, pVartoRConc p)
