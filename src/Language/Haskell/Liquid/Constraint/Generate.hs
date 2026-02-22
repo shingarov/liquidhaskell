@@ -62,6 +62,7 @@ import           Language.Haskell.Liquid.Bare.DataType (dataConMap, makeDataConC
 
 import           Language.Haskell.Liquid.Types hiding (binds, Loc, loc, Def)
 import Data.Typeable(typeOf)
+import Data.Hashable
 
 --------------------------------------------------------------------------------
 -- | Constraint Generation: Toplevel -------------------------------------------
