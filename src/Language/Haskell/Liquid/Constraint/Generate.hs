@@ -63,6 +63,7 @@ import           Language.Haskell.Liquid.Bare.DataType (dataConMap, makeDataConC
 import           Language.Haskell.Liquid.Types hiding (binds, Loc, loc, Def)
 import Data.Typeable(typeOf)
 import Data.Hashable
+import Debug.Trace
 
 --------------------------------------------------------------------------------
 -- | Constraint Generation: Toplevel -------------------------------------------
@@ -803,7 +804,7 @@ instantiatePreds :: CGEnv
                  -> CG SpecType
 instantiatePreds γ e (RAllP π t)
   = do r     <- freshPredRef γ e π
-       traceM $  "\n\n\ninstantiatePreds:\nπ = " ++ show π
+       traceM $  "\n\n\ninstantiatePreds:\nπ = " ++ show π ++ "\nt = " ++ show t ++ "\ne = " ++ showBoth e ++ traceStack "\n" ""
        instantiatePreds γ e $ replacePreds "consE" t [(π, r)]
 
 instantiatePreds _ _ t0
