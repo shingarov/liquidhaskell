@@ -264,7 +264,7 @@ replacePredsWithRefs (p, r) (MkUReft (F.Reft(v, rs)) (Pr ps))
     rs'              = r . (v,) . pargs <$> ps1
     (ps1, ps2)       = L.partition (== p) ps
 
-pVartoRConc :: PVar t -> (F.Symbol, [(a, b, F.Expr)]) -> F.Expr
+pVartoRConc :: (Show a, Show b, Show t) => PVar t -> (F.Symbol, [(a, b, F.Expr)]) -> F.Expr
 pVartoRConc p (v, args) | length args == length (pargs p)
   = pApp (pname p) $ F.EVar v : (thd3 <$> args)
 
