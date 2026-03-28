@@ -47,7 +47,6 @@ import           Language.Haskell.Liquid.Constraint.Init
 import           Language.Haskell.Liquid.Constraint.Env
 import           Language.Haskell.Liquid.Constraint.Monad
 import           Language.Haskell.Liquid.Constraint.Split
-import           Language.Haskell.Liquid.Constraint.Relational (consAssmRel, consRelTop)
 import           Language.Haskell.Liquid.Types.Dictionaries
 import           Liquid.GHC.Play          (isHoleVar)
 import qualified Liquid.GHC.Resugar           as Rs
@@ -84,14 +83,8 @@ generateConstraintsWithEnv info cgi γ = {-# SCC "ConsGenEnv" #-} execState act 
 
 consAct :: CGEnv -> Config -> TargetInfo -> CG ()
 consAct γ cfg info = do
-  let sSpc = gsSig . giSpec $ info
   let gSrc = giSrc info
-  when (gradual cfg) (mapM_ (addW . WfC γ . val . snd) (gsTySigs sSpc ++ gsAsmSigs sSpc))
-  γ' <- foldM (consCBTop cfg info) γ (giCbs gSrc)
-  -- Relational Checking: the following only runs when the list of relational specs is not empty
-  (ψ, γ'') <- foldM (consAssmRel cfg info) ([], γ') (gsAsmRel sSpc ++ gsRelation sSpc)
-  mapM_ (consRelTop cfg info γ'' ψ) (gsRelation sSpc)
-  -- End: Relational Checking
+  _ <- foldM (consCBTop cfg info) γ (giCbs gSrc)
   mapM_ (consClass γ) (gsMethods $ gsSig $ giSpec info)
   hcs <- gets hsCs
   hws <- gets hsWfs
@@ -742,17 +735,11 @@ addForAllConstraint γ _ _ _
 
 
 addFunctionConstraint :: CGEnv -> Var -> CoreExpr -> SpecType -> CG ()
-addFunctionConstraint γ x e (RFun y i ty t r)
+addFunctionConstraint γ _ _ (RFun y i ty t r)
   = do ty'      <- true (typeclass (getConfig γ)) ty
        t'       <- true (typeclass (getConfig γ)) t
        let truet = RFun y i ty' t'
-       lamE <- lamExpr γ e
-       case (lamE, higherOrderFlag γ) of
-          (Just e', True) -> do tce    <- gets tyConEmbed
-                                let sx  = typeSort tce $ varType x
-                                let ref = uTop $ F.exprReft $ F.ELam (F.symbol x, sx) e'
-                                addC (SubC γ (truet ref) $ truet r)    "function constraint singleton"
-          _ -> addC (SubC γ (truet mempty) $ truet r) "function constraint true"
+       addC (SubC γ (truet mempty) $ truet r) "function constraint true"
 addFunctionConstraint γ _ _ _
   = impossible (Just $ getLocation γ) "addFunctionConstraint: called on non function argument"
 
