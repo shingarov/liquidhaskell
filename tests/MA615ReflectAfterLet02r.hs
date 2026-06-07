@@ -1,0 +1,17 @@
+{-@ LIQUID "--reflection" @-}
+{-@ LIQUID "--ple"        @-}
+
+module MA615ReflectAfterLet02r where
+
+{-@ reflect f @-} 
+f :: Int -> Int 
+f x = x
+
+{-@ reflect g @-} 
+g :: Int -> Int 
+g x = f x
+
+{-@ check :: x:Int -> {v:Int| v = x } @-}
+check :: Int -> Int
+check x = f(g(x))
+
